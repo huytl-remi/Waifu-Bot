@@ -16,9 +16,5 @@ env/
 .DS_Store
 Thumbs.db
 
-# Bot specific
-memory/bot_personality.txt
-memory/cached_content.txt
-
 # Logs
 *.log
