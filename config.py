@@ -1,20 +1,14 @@
-import os
-from dotenv import load_dotenv
+# Bot Configuration
+WATCH_MESSAGE_COUNT = 20  # Number of messages to watch before considering a chime-in
+AI_MODEL = "claude-3-sonnet-20240320"  # AI model to use
+MAX_TOKENS = 1024  # Maximum number of tokens for AI responses
 
-# Load environment variables from .env file
-load_dotenv()
+# File Paths
+BOT_PERSONALITY_FILE = './memory/bot_personality.txt'
+BOT_MEMORY_FILE = './memory/bot_memory.txt'
 
-# Telegram Bot Token
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+# Trigger word for direct interactions
+BOT_TRIGGER = '#waifu'
 
-# Anthropic API Key
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-
-# You can add more configuration variables here as needed
-
-# Validate that required environment variables are set
-if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN is not set in the environment")
-
-if not ANTHROPIC_API_KEY:
-    raise ValueError("ANTHROPIC_API_KEY is not set in the environment")
+# Welcome message
+WELCOME_MESSAGE = "Hello! I'm Waifu-chan, your friendly Token Waifu mascot. How can I help you today?"
