@@ -1,8 +1,10 @@
 import os
 from dotenv import load_dotenv
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from anthropic import InternalServerError
 import anthropic
 import json
+import time
 from collections import deque
 
 # Import configuration
@@ -71,16 +73,34 @@ def handle_message(update, context):
         respond_to_tag(update, context)
 
 def check_chime_in(context, chat_id):
-    messages = [
-        {"role": "system", "content": bot_personality, "cache_control": {"type": "ephemeral"}},
-        {"role": "system", "content": f"## Your memory: {bot_memory}", "cache_control": {"type": "ephemeral"}},
-        {"role": "system", "content": "You are deciding whether to chime into a conversation. Respond with a JSON object with 'chime_in' (yes/no) and 'message' (your message or null)."},
-        {"role": "user", "content": f"Recent messages: {list(message_queue)}"}
+    system = [
+        {
+            "type": "text",
+            "text": bot_personality,
+            "cache_control": {"type": "ephemeral"}
+        },
+        {
+            "type": "text",
+            "text": f"## Your memory: {bot_memory}",
+            "cache_control": {"type": "ephemeral"}
+        },
+        {
+            "type": "text",
+            "text": "You are deciding whether to chime into a conversation. Respond with a JSON object with 'chime_in' (yes/no) and 'message' (your message or null)."
+        }
     ]
 
-    response = client.messages.create(
+    messages = [
+        {
+            "role": "user",
+            "content": f"Recent messages: {list(message_queue)}"
+        }
+    ]
+
+    response = client.beta.prompt_caching.messages.create(
         model=AI_MODEL,
         max_tokens=MAX_TOKENS,
+        system=system,
         messages=messages
     )
 
@@ -94,19 +114,53 @@ def check_chime_in(context, chat_id):
 def respond_to_tag(update, context):
     recent_messages = list(message_queue)
 
-    messages = [
-        {"role": "system", "content": bot_personality, "cache_control": {"type": "ephemeral"}},
-        {"role": "system", "content": bot_memory, "cache_control": {"type": "ephemeral"}},
-        {"role": "user", "content": f"Recent messages: {recent_messages}\nRespond to: {update.message.text}"}
+    system = [
+        {
+            "type": "text",
+            "text": bot_personality,
+            "cache_control": {"type": "ephemeral"}
+        },
+        {
+            "type": "text",
+            "text": bot_memory,
+            "cache_control": {"type": "ephemeral"}
+        }
     ]
 
-    response = client.messages.create(
-        model=AI_MODEL,
-        max_tokens=MAX_TOKENS,
-        messages=messages
-    )
+    messages = [
+        {
+            "role": "user",
+            "content": f"Recent messages: {recent_messages}\nRespond to: {update.message.text}"
+        }
+    ]
 
-    context.bot.send_message(chat_id=update.effective_chat.id, text=response.content[0].text)
+    max_retries = 3
+    retry_delay = 1  # Start with 1 second delay
+
+    for attempt in range(max_retries):
+        try:
+            response = client.beta.prompt_caching.messages.create(
+                model=AI_MODEL,
+                max_tokens=MAX_TOKENS,
+                system=system,
+                messages=messages
+            )
+            context.bot.send_message(chat_id=update.effective_chat.id, text=response.content[0].text)
+            break  # If successful, break out of the retry loop
+        except InternalServerError as e:
+            if attempt < max_retries - 1:  # If not the last attempt
+                print(f"Attempt {attempt + 1} failed. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                error_message = "I'm sorry, I'm having trouble responding right now. Please try again later."
+                context.bot.send_message(chat_id=update.effective_chat.id, text=error_message)
+                print(f"All attempts failed. Error: {str(e)}")
+        except Exception as e:
+            error_message = "An unexpected error occurred. Please try again later."
+            context.bot.send_message(chat_id=update.effective_chat.id, text=error_message)
+            print(f"Unexpected error: {str(e)}")
+            break  # Break for non-InternalServerError exceptions
 
 def main():
     updater = Updater(TELEGRAM_TOKEN, use_context=True)

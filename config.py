@@ -1,6 +1,6 @@
 # Bot Configuration
 WATCH_MESSAGE_COUNT = 20  # Number of messages to watch before considering a chime-in
-AI_MODEL = "claude-3-sonnet-20240320"  # AI model to use
+AI_MODEL = "claude-3-5-sonnet-20240620"  # AI model to use
 MAX_TOKENS = 1024  # Maximum number of tokens for AI responses
 
 # File Paths
